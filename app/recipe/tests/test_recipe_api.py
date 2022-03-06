@@ -7,10 +7,26 @@ from rest_framework import status
 # APIClient is used to make API requests
 from rest_framework.test import APIClient
 
-from core.models import Recipe
-from recipe.serializers import RecipeSerializer
+from core.models import Recipe, Tag, Ingredient
+from recipe.serializers import RecipeSerializer, RecipeDetailSerializer
 
 RECIPES_URL = reverse('recipe:recipe-list')
+
+def detail_url(recipe_id):
+    '''Return recipe detail URL'''
+
+    return reverse('recipe:recipe-detail', args=[recipe_id])
+
+def sample_tag(user, name='Main Course'):
+    '''Create and return a sample tag'''
+
+    return Tag.objects.create(user=user, name=name)
+
+def sample_ingredient(user, name='Cinnamon'):
+    '''Create and return a sample ingredient'''
+
+    return Ingredient.objects.create(user=user, name=name)
+
 
 # ** means that any addional attributes in the function will be added as a dictionary in params
 def sample_recipe(user, **params):
@@ -25,6 +41,7 @@ def sample_recipe(user, **params):
     defaults.update(params)
 
     return Recipe.objects.create(user=user, **defaults)
+
 
 class PublicRecipeApiTests(TestCase):
     '''Test unauthenticated recipe API access'''
@@ -82,4 +99,18 @@ class PrivateRecipeApiTests(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.data), 1)
+        self.assertEqual(res.data, serializer.data)
+
+    def test_view_recipe_details(self):
+        '''Test viewing a recipe detail'''
+
+        recipes = sample_recipe(user=self.user)
+        recipes.tags.add(sample_tag(user=self.user))
+        recipes.ingredients.add(sample_ingredient(user=self.user))
+
+        url = detail_url(recipes.id)
+        res = self.client.get(url)
+
+        serializer = RecipeDetailSerializer(recipes)
+
         self.assertEqual(res.data, serializer.data)
